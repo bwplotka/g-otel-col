@@ -160,3 +160,22 @@ func (f fakeMetadataStore) SizeMetadata() int {
 func (f fakeMetadataStore) LengthMetadata() int {
 	return len(f.data)
 }
+
+// Recommended CLI invocation:
+//
+//	go test -run '^$' -bench '^BenchmarkMetadataForMetric$' -benchtime 500ms -count 6 -cpu 2 -timeout 999m -benchmem | tee bench.txt
+func BenchmarkMetadataForMetric(b *testing.B) {
+	mc := emptyMetadataStoreInstance
+	b.Run("internal_metric", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			_, _ = metadataForMetric("scrape_duration_seconds", mc)
+		}
+	})
+	b.Run("unknown_metric", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			_, _ = metadataForMetric("custom_request_latency_seconds", mc)
+		}
+	})
+}

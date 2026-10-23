@@ -45,8 +45,22 @@ var internalMetricMetadata = map[string]scrape.MetricMetadata{
 	},
 }
 
+func lookupInternalMetricMetadata(metricName string) (scrape.MetricMetadata, bool) {
+	switch metricName {
+	case scrapeUpMetricName,
+		"scrape_duration_seconds",
+		"scrape_samples_scraped",
+		"scrape_series_added",
+		"scrape_samples_post_metric_relabeling":
+		metadata, ok := internalMetricMetadata[metricName]
+		return metadata, ok
+	default:
+		return scrape.MetricMetadata{}, false
+	}
+}
+
 func metadataForMetric(metricName string, mc scrape.MetricMetadataStore) (scrape.MetricMetadata, string) {
-	if metadata, ok := internalMetricMetadata[metricName]; ok {
+	if metadata, ok := lookupInternalMetricMetadata(metricName); ok {
 		return metadata, metricName
 	}
 	if metadata, ok := mc.GetMetadata(metricName); ok {
@@ -55,16 +69,18 @@ func metadataForMetric(metricName string, mc scrape.MetricMetadataStore) (scrape
 	// If we didn't find metadata with the original name,
 	// try with suffixes trimmed, in-case it is a "merged" metric type.
 	normalizedName := normalizeMetricName(metricName)
-	if metadata, ok := mc.GetMetadata(normalizedName); ok {
-		if metadata.Type == model.MetricTypeCounter {
-			// NB (eriksywu): see https://github.com/prometheus/prometheus/issues/14823
-			if strings.HasSuffix(metricName, metricSuffixCreated) {
-				return metadata, normalizedName + metricSuffixTotal
+	if normalizedName != metricName {
+		if metadata, ok := mc.GetMetadata(normalizedName); ok {
+			if metadata.Type == model.MetricTypeCounter {
+				// NB (eriksywu): see https://github.com/prometheus/prometheus/issues/14823
+				if strings.HasSuffix(metricName, metricSuffixCreated) {
+					return metadata, normalizedName + metricSuffixTotal
+				}
+				// END NB (eriksywu)
+				return metadata, metricName
 			}
-			// END NB (eriksywu)
-			return metadata, metricName
+			return metadata, normalizedName
 		}
-		return metadata, normalizedName
 	}
 	// Otherwise, the metric is unknown
 	return scrape.MetricMetadata{
