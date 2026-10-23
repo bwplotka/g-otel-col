@@ -41,10 +41,7 @@ func SetMapValue[K any](ctx context.Context, tCtx K, m pcommon.Map, keys []ottl.
 		return fmt.Errorf("cannot set map value: %w", err)
 	}
 
-	currentValue, ok := m.Get(*s)
-	if !ok {
-		currentValue = m.PutEmpty(*s)
-	}
+	currentValue, _ := m.GetOrPutEmpty(*s)
 	return SetIndexableValue[K](ctx, tCtx, currentValue, val, keys[1:])
 }
 
@@ -113,3 +110,8 @@ func GetMap(val any) (pcommon.Map, error) {
 	}
 	return pcommon.Map{}, fmt.Errorf("failed to convert type %T into pcommon.Map", val)
 }
+
+// MapGetSetter is an ottl.GetSetter[K] for pcommon.Map fields that also provides
+// direct unboxed ottl.PMapGetter[K] and ottl.PMapGetSetter[K] access so callers
+// operating on pcommon.Map do not box pcommon.Map into an interface{}/any on
+// every Get and Set call.
